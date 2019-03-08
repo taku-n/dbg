@@ -6,14 +6,16 @@ use std::sync::*;
 use std::sync::mpsc;
 use std::thread;
 
-static mut RECEIVER: Option<Mutex<mpsc::Receiver<[u8; 512]>>> = None;
+//static mut RECEIVER: Option<Mutex<mpsc::Receiver<[u8; 1024]>>> = None;
+static mut RECEIVER: Option<mpsc::Receiver<[u8; 1024]>> = None;
 
 #[no_mangle]
 pub extern "C" fn init() {
     let (tx, rx) = mpsc::channel();
 
     unsafe {
-        RECEIVER = Some(Mutex::new(rx));
+        //RECEIVER = Some(Mutex::new(rx));
+        RECEIVER = Some(rx);
     }
 
     thread::spawn(move || {
@@ -21,7 +23,7 @@ pub extern "C" fn init() {
 
         for stream in listener.incoming() {
             let mut stream = stream.unwrap();
-            let mut buffer = [0; 512];
+            let mut buffer = [0; 1024];
 
             stream.read(&mut buffer).unwrap();
 
@@ -34,10 +36,14 @@ pub extern "C" fn init() {
 pub extern "C" fn get_msg(p_s: *mut u8, n: usize) {
     let s = unsafe {slice::from_raw_parts_mut(p_s, n)};
 
-    let a = [0x68u8, 0x65u8, 0x6Cu8, 0x6Cu8, 0x6Fu8, 0x00u8];
-    let s_a = &a[..];
+    //let a = [0x68u8, 0x65u8, 0x6Cu8, 0x6Cu8, 0x6Fu8, 0x00u8];
+    //let s_a = &a[..];
 
-    ref_s2s(s, s_a);
+    let rx = unsafe {RECEIVER.as_ref().unwrap()};
+
+    let received: [u8; 1024] = rx.recv().unwrap();
+
+    ref_s2s(s, &received);
 }
 
 fn ref_s2s(s_dst: &mut [u8], s_src: &[u8]) {
