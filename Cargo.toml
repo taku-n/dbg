@@ -1,0 +1,11 @@
+[package]
+name = "dbg"
+version = "0.1.0"
+authors = ["Takumi Nishijo <hoge@hoge.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+libc = "0.2"
