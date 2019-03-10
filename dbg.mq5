@@ -5,14 +5,16 @@ void get_msg(uchar &p_s[], unsigned long n);
 
 #property service
 
+#define SIZE 256
+
 void OnStart()
 {
-    uchar s[1024];
+    uchar s[SIZE];
 
     init();
 
     for (;;) {
-        get_msg(s, 1024);
+        get_msg(s, SIZE);
         Print(CharArrayToString(s));
     }
 }

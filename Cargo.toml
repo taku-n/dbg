@@ -6,6 +6,8 @@ edition = "2018"
 
 [lib]
 crate-type = ["cdylib"]
+# To make a DLL, enable this line and disable main.rs.
+# To build main.rs, comment this out.
 
 [dependencies]
 libc = "0.2"

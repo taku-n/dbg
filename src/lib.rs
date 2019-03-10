@@ -1,33 +1,48 @@
+use std::io::ErrorKind;
 use std::io::prelude::*;
 use std::net::TcpStream;
 use std::net::TcpListener;
 use std::slice;
 use std::sync::*;
-use std::sync::mpsc;
 use std::thread;
 
-//static mut RECEIVER: Option<Mutex<mpsc::Receiver<[u8; 1024]>>> = None;
-static mut RECEIVER: Option<mpsc::Receiver<[u8; 1024]>> = None;
+const SIZE: usize = 256;
+const ADDR_PORT: &str = "127.0.0.1:9841";
+
+static mut RECEIVER: Option<Mutex<mpsc::Receiver<Vec<u8>>>> = None;
+//static mut RECEIVER: Option<mpsc::Receiver<Vec<u8>>> = None;
 
 #[no_mangle]
 pub extern "C" fn init() {
     let (tx, rx) = mpsc::channel();
 
     unsafe {
-        //RECEIVER = Some(Mutex::new(rx));
-        RECEIVER = Some(rx);
+        RECEIVER = Some(Mutex::new(rx));
+        //RECEIVER = Some(rx);
     }
 
     thread::spawn(move || {
-        let listener = TcpListener::bind("127.0.0.1:9841").unwrap();
+        let listener = TcpListener::bind(ADDR_PORT)
+                .expect("Failed to make a listener.");
 
-        for stream in listener.incoming() {
-            let mut stream = stream.unwrap();
-            let mut buffer = [0; 1024];
+        'incoming: for stream in listener.incoming() {
+            let mut stream = stream.expect("A new client came but failed.");
+            let mut buf = vec![0u8; SIZE];
 
-            stream.read(&mut buffer).unwrap();
+            'reading: loop {
+                match stream.read(&mut buf) {
+                    Ok(0) => {continue 'incoming;},  // No Bytes
+                    Ok(1) => {continue 'incoming;},  // Only NUL
+                    Ok(n) => {break 'reading;},
+                    Err(e) => match e.kind() {
+                        ErrorKind::Interrupted => {continue 'reading;},
+                        other_error
+                                => panic!("Reading Error: {:?}", other_error),
+                    },
+                };
+            }
 
-            tx.send(buffer).unwrap();
+            tx.send(buf).expect("Sending Error");  // buf is moved
         }
     });
 }
@@ -39,9 +54,9 @@ pub extern "C" fn get_msg(p_s: *mut u8, n: usize) {
     //let a = [0x68u8, 0x65u8, 0x6Cu8, 0x6Cu8, 0x6Fu8, 0x00u8];
     //let s_a = &a[..];
 
-    let rx = unsafe {RECEIVER.as_ref().unwrap()};
+    let rx = unsafe {RECEIVER.as_ref().unwrap().lock().unwrap()};
 
-    let received: [u8; 1024] = rx.recv().unwrap();
+    let received = rx.recv().unwrap();
 
     ref_s2s(s, &received);
 }
