@@ -26,14 +26,15 @@ pub extern "C" fn init() {
                 .expect("Failed to make a listener.");
 
         'incoming: for stream in listener.incoming() {
-            let mut stream = stream.expect("A new client came but failed.");
+            let mut stream: std::net::TcpStream
+                    = stream.expect("A new client came but failed.");
             let mut buf = vec![0u8; SIZE];
 
             'reading: loop {
                 match stream.read(&mut buf) {
-                    Ok(0) => {continue 'incoming;},  // No Bytes
-                    Ok(1) => {continue 'incoming;},  // Only NUL
-                    Ok(n) => {break 'reading;},
+                    Ok(0) => continue 'incoming,  // No Bytes
+                    //Ok(1) => {continue 'incoming;},  // Only NUL
+                    Ok(n) => break 'reading,
                     Err(e) => match e.kind() {
                         ErrorKind::Interrupted => {continue 'reading;},
                         other_error
